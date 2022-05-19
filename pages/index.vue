@@ -20,13 +20,13 @@
               <button class="w-40 py-2 text-lg text-green-500 border border-green-500 font-semibold rounded hover:bg-green-100" :disabled="isProcessing" @click="start()">START</button>
             </div>
           </div>
-          <div class="flex justify-center pt-4 space-x-2">
+          <div class="flex justify-center pt-4 space-x-2 font-semibold">
             START・STOPをクリックしてください
           </div>
         </div>
-        <div class="max-w-4xl mx-auto pt-8 sm:px-6 lg:px-8">
-          <h4>未:  テスト テスト テスト テスト</h4>
-          <h4>済:  テスト テスト テスト テスト</h4>
+        <div class="max-w-4xl mx-auto pt-16 sm:px-6 lg:px-8">
+          <UserList :users="todoUsers" status-word="未" />
+          <UserList :users="doneUsers" status-word="済" />
         </div>
       </div>
     </div>
@@ -34,20 +34,43 @@
 </template>
 
 <script>
-import { defineComponent, ref, computed } from '@vue/composition-api'
+import { computed, ref } from '@vue/composition-api'
+import { getDocs, collection, query } from 'firebase/firestore/lite'
+import db from '../plugins/firebase'
+import UserList from "../components/UserList.vue";
 
-export default defineComponent({
+export default {
+  components: { UserList },
   setup() {
-    const result = ref('テスト')
+    // Todo: Firebaseとの通信処理は別ファイルに切り出す
+    if (!db) {
+      return
+    }
+    const q = query(collection(db, 'users'))
+    const getUsers = async () => await getDocs(q).then((querySnapshot) => {
+      querySnapshot.forEach((doc) => {
+        users.value.push(doc.data())
+      })
+    })
+    getUsers()
+
+    const users = ref([])
+    const todoUsers = computed(() => {
+      return users.value.filter(user => user.status === 'todo').map(user => user.name)
+    })
+    const doneUsers = computed(() => {
+      return users.value.filter(user => user.status === 'done').map(user => user.name)
+    })
+
+    const result = ref('')
     const timer = ref(0)
-    const bingo = computed(() => [...Array(20).keys()].map(i => ++i))
     const isProcessing = ref(false)
 
     const start = () => {
       isProcessing.value = true
       timer.value = setInterval(() => {
-        const random = Math.floor(Math.random() * bingo.value.length)
-        result.value = bingo.value[random]
+        const random = Math.floor(Math.random() * todoUsers.value.length)
+        result.value = todoUsers.value[random]
       }, 50);
     }
     const stop = () => {
@@ -57,14 +80,14 @@ export default defineComponent({
 
     return {
       result,
-      timer,
-      bingo,
+      todoUsers,
+      doneUsers,
       isProcessing,
       start,
       stop
     }
   }
-})
+}
 </script>
 
 <style scoped>
@@ -81,5 +104,4 @@ export default defineComponent({
   width: 160px;
   height: 160px;
 }
-
 </style>
